@@ -1,0 +1,744 @@
+{
+  "uid": "job-cronjob",
+  "title": "Job / CronJob",
+  "tags": [
+    "job",
+    "cronjob",
+    "pushgateway"
+  ],
+  "description": "Last delivered attempt per stable worker, not cumulative execution statistics. Application snapshots show state at the selected end time; Kubernetes timeline uses collected historical states. History between scrapes may be lost. No rate/increase over last-run gauges.",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {}
+      },
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "query": "label_values(job_last_run_status_ratio, service_name)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": false,
+        "includeAll": false,
+        "current": {}
+      },
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "query",
+        "query": "label_values(job_last_run_status_ratio, deployment_environment_name)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "cluster",
+        "label": "Cluster",
+        "type": "query",
+        "query": "label_values(job_last_run_status_ratio, k8s_cluster_name)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "query": "label_values(job_last_run_status_ratio, k8s_namespace_name)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "worker",
+        "label": "Worker",
+        "type": "query",
+        "query": "label_values(job_last_run_status_ratio{service_name=~\"${service:regex}\"}, worker)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "kube_cluster",
+        "label": "K8s cluster",
+        "type": "query",
+        "query": "label_values(kube_cronjob_info, cluster)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "kube_namespace",
+        "label": "K8s namespace",
+        "type": "query",
+        "query": "label_values(kube_cronjob_info{cluster=~\"${kube_cluster:regex}\"}, namespace)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "cronjob",
+        "label": "CronJob",
+        "type": "query",
+        "query": "label_values(kube_cronjob_info{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\"}, cronjob)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Last attempt outcome",
+      "description": "Last delivered outcome for each logical worker. 0=success, 1=error/panic/timeout/canceled; outcome provides the reason. This is not an error rate over a time range. State remains after the process exits.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "job_last_run_status_ratio{service_name=~\"${service:regex}\",deployment_environment_name=~\"${environment:regex}\",worker=~\"${worker:regex}\",k8s_cluster_name=~\"${cluster:regex}\",k8s_namespace_name=~\"${namespace:regex}\"}",
+          "instant": true,
+          "range": false,
+          "editorMode": "code",
+          "legendFormat": "{{worker}} · {{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "No observations",
+          "decimals": 0,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OK",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "Failed",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Time since last success",
+      "description": "Age of the last delivered success. A later failure does not erase the previous success. Missing success data does not prove the task has never succeeded: telemetry may have been lost or the Pushgateway cleared.",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_min(time() - job_last_success_finished_at_seconds{service_name=~\"${service:regex}\",deployment_environment_name=~\"${environment:regex}\",worker=~\"${worker:regex}\",k8s_cluster_name=~\"${cluster:regex}\",k8s_namespace_name=~\"${namespace:regex}\"}, 0) or on(service_name,deployment_environment_name,worker,k8s_cluster_name,k8s_namespace_name) (job_last_run_finished_at_seconds{service_name=~\"${service:regex}\",deployment_environment_name=~\"${environment:regex}\",worker=~\"${worker:regex}\",k8s_cluster_name=~\"${cluster:regex}\",k8s_namespace_name=~\"${namespace:regex}\"} * 0 - 1)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code",
+          "legendFormat": "{{worker}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No observations",
+          "decimals": 1,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "No data",
+                  "color": "orange"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Time since last completion",
+      "description": "Age of the last completed attempt. An unrecovered panic, SIGKILL or failed delivery will not update this measurement. Increasing age matters more than a stale OK status.",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_min(time() - job_last_run_finished_at_seconds{service_name=~\"${service:regex}\",deployment_environment_name=~\"${environment:regex}\",worker=~\"${worker:regex}\",k8s_cluster_name=~\"${cluster:regex}\",k8s_namespace_name=~\"${namespace:regex}\"}, 0)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code",
+          "legendFormat": "{{worker}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No observations",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Processed items · last attempt",
+      "description": "Reported items in the last attempt, including partial progress on failure. Do not sum this gauge over scrapes or use rate/increase. It is not a count of unique messages.",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 8,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "job_last_run_processed{service_name=~\"${service:regex}\",deployment_environment_name=~\"${environment:regex}\",worker=~\"${worker:regex}\",k8s_cluster_name=~\"${cluster:regex}\",k8s_namespace_name=~\"${namespace:regex}\"}",
+          "instant": true,
+          "range": false,
+          "editorMode": "code",
+          "legendFormat": "{{worker}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No observations",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Duration · last attempt",
+      "description": "Total duration of the last attempt. This is neither p95 nor a complete run history: multiple pushes between scrapes may not be observed.",
+      "gridPos": {
+        "x": 8,
+        "y": 6,
+        "w": 8,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "job_last_run_duration_seconds{service_name=~\"${service:regex}\",deployment_environment_name=~\"${environment:regex}\",worker=~\"${worker:regex}\",k8s_cluster_name=~\"${cluster:regex}\",k8s_namespace_name=~\"${namespace:regex}\"}",
+          "instant": true,
+          "range": false,
+          "editorMode": "code",
+          "legendFormat": "{{worker}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No observations",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Time since last metrics push",
+      "description": "Age of the last successful group push to Pushgateway. Successful delivery does not mean the business operation succeeded. Delivery time is separate from work completion time.",
+      "gridPos": {
+        "x": 16,
+        "y": 6,
+        "w": 8,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_min(time() - push_time_seconds{service_name=~\"${service:regex}\",deployment_environment_name=~\"${environment:regex}\",worker=~\"${worker:regex}\",k8s_cluster_name=~\"${cluster:regex}\",k8s_namespace_name=~\"${namespace:regex}\"}, 0)",
+          "instant": true,
+          "range": false,
+          "editorMode": "code",
+          "legendFormat": "{{worker}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No observations",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 20,
+      "type": "text",
+      "title": "Reading this dashboard",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Above: application results from Pushgateway. Below: Kubernetes Job lifecycle from kube-state-metrics.**\n\nJob startup is not the start of `job.Func`; Pod retries belong to the same Job. History contains only states collected by Prometheus and is limited by retention. Jobs deleted before a scrape may be missing.\n\nThe Kubernetes block has separate **K8s cluster / namespace / CronJob** filters: service names are not automatically mapped to CronJobs. Without kube-state-metrics, this block has no data."
+      }
+    },
+    {
+      "id": 21,
+      "type": "row",
+      "title": "Kubernetes · scheduling and Job history",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "K8s · last scheduled time",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster, namespace, cronjob) (kube_cronjob_status_last_schedule_time{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\",cronjob=~\"${cronjob:regex}\"} > 0) * 1000",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{cluster}} / {{namespace}} / {{cronjob}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeAsIso",
+          "noValue": "No kube-state-metrics data",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "none"
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "K8s · last successful Job",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 17,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster, namespace, cronjob) (kube_cronjob_status_last_successful_time{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\",cronjob=~\"${cronjob:regex}\"} > 0) * 1000",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{cluster}} / {{namespace}} / {{cronjob}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeAsIso",
+          "noValue": "No kube-state-metrics data",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "none"
+      }
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "K8s · active Jobs",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 17,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (cluster, namespace, cronjob) (kube_cronjob_status_active{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\",cronjob=~\"${cronjob:regex}\"})",
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{cluster}} / {{namespace}} / {{cronjob}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No kube-state-metrics data",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "graphMode": "none",
+        "colorMode": "none"
+      }
+    },
+    {
+      "id": 25,
+      "type": "state-timeline",
+      "title": "K8s · observed Job states",
+      "description": "1=active Pods, 2=Job Complete, 3=Job Failed. Gaps indicate missing observations, not success. Terminal states may remain until the object is deleted; the width of a success/failure bar is not execution time. This is not an audit of every Pod or attempt. Multi-cluster monitoring requires a stable cluster label on all kube_* series.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((max by (cluster, namespace, job_name) (kube_job_failed{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\",condition=\"true\"}) == 1) * 3 or (max by (cluster, namespace, job_name) (kube_job_complete{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\",condition=\"true\"}) == 1) * 2 or clamp_max((max by (cluster, namespace, job_name) (kube_job_status_active{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\"}) > 0), 1)) * on (cluster, namespace, job_name) group_left(owner_name) (max by (cluster, namespace, job_name, owner_name) (kube_job_owner{cluster=~\"${kube_cluster:regex}\",namespace=~\"${kube_namespace:regex}\",owner_kind=\"CronJob\",owner_is_controller=\"true\",owner_name=~\"${cronjob:regex}\"} == 1))",
+          "range": true,
+          "instant": false,
+          "legendFormat": "{{cluster}} / {{namespace}} / {{job_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No observation",
+          "custom": {
+            "spanNulls": false,
+            "lineWidth": 0,
+            "fillOpacity": 75
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Active",
+                  "color": "blue"
+                },
+                "2": {
+                  "text": "Succeeded",
+                  "color": "green"
+                },
+                "3": {
+                  "text": "Failed",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "alignValue": "left",
+        "rowHeight": 0.8,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "Beat · statistics over time",
+      "type": "link",
+      "url": "/d/job-beat",
+      "targetBlank": false
+    }
+  ]
+}
